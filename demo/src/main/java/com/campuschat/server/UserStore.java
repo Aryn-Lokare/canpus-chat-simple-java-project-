@@ -1,59 +1,55 @@
 package com.campuschat.server;
 
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.*;
 
 /**
- * Stub class representing Person 3's UserStore.
- * Provides user existence checks.
+ * Person 3's UserStore (in-memory version).
+ * Same method names as the stub, so other code does not change.
+ * Later this will be rewritten with Hibernate.
  */
 public class UserStore {
 
-    private static final Set<String> registeredUsers = ConcurrentHashMap.newKeySet();
+    private static final Set<String> registeredUsers =
+            Collections.synchronizedSet(new LinkedHashSet<>());
     private static volatile boolean simulateDatabaseError = false;
 
     static {
-        // Pre-populate with default mock users for testing
-        registeredUsers.add("alice");
-        registeredUsers.add("bob");
-        registeredUsers.add("charlie");
-        registeredUsers.add("aryan");
+        for (String name : new String[]{"alice", "bob", "charlie", "aryan"}) {
+            registeredUsers.add(name);
+        }
     }
 
-    private UserStore() {}
+    private UserStore() { }
 
-    /**
-     * Checks if a user is registered.
-     */
+    // "Alice " and "alice" are the same user
+    private static String clean(String name) {
+        return name == null ? "" : name.trim().toLowerCase();
+    }
+
     public static boolean exists(String username) {
         checkDatabaseHealth();
-        if (username == null) {
-            return false;
-        }
-        return registeredUsers.contains(username.trim());
+        return registeredUsers.contains(clean(username));
     }
 
-    /**
-     * Helper method to add a user (for tests).
-     */
+    // returns a copy so other code cannot change the set by accident
+    public static List<String> allUsernames() {
+        checkDatabaseHealth();
+        synchronized (registeredUsers) {
+            return new ArrayList<>(registeredUsers);
+        }
+    }
+
     public static void addUser(String username) {
-        if (username != null) {
-            registeredUsers.add(username.trim());
+        String name = clean(username);
+        if (!name.isEmpty()) {
+            registeredUsers.add(name);          // a Set never keeps duplicates
         }
     }
 
-    /**
-     * Helper method to remove a user (for tests).
-     */
-    public static void removeUser(String username) {
-        if (username != null) {
-            registeredUsers.remove(username.trim());
-        }
+    public static void removeUser(String username) {   // used by tests
+        registeredUsers.remove(clean(username));
     }
 
-    /**
-     * Simulates database failure to verify exception handling (Section 11.3).
-     */
     public static void setSimulateDatabaseError(boolean throwError) {
         simulateDatabaseError = throwError;
     }
