@@ -1,0 +1,21 @@
+# Maven build outputs
+target/
+**/target/
+
+# Database files
+data/
+**/data/
+*.db
+*.mv.db
+*.trace.db
+
+# Compiled class files
+*.class
+
+# IDE specific files
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
