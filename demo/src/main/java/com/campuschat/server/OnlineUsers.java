@@ -2,6 +2,7 @@ package com.campuschat.server;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -30,14 +31,30 @@ public class OnlineUsers {
     public static void remove(String username) {
         if (username != null) {
             onlineMap.remove(username);
+            for (String key : onlineMap.keySet()) {
+                if (key.equalsIgnoreCase(username)) {
+                    onlineMap.remove(key);
+                }
+            }
         }
     }
 
     /**
-     * Checks if a user is currently online.
+     * Checks if a user is currently online (case-insensitive).
      */
     public static boolean isOnline(String username) {
-        return username != null && onlineMap.containsKey(username);
+        if (username == null) {
+            return false;
+        }
+        if (onlineMap.containsKey(username)) {
+            return true;
+        }
+        for (String key : onlineMap.keySet()) {
+            if (key.equalsIgnoreCase(username)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -47,7 +64,16 @@ public class OnlineUsers {
         if (username == null) {
             return null;
         }
-        return onlineMap.get(username);
+        ClientHandler handler = onlineMap.get(username);
+        if (handler != null) {
+            return handler;
+        }
+        for (Map.Entry<String, ClientHandler> entry : onlineMap.entrySet()) {
+            if (entry.getKey().equalsIgnoreCase(username)) {
+                return entry.getValue();
+            }
+        }
+        return null;
     }
 
     /**
@@ -64,4 +90,3 @@ public class OnlineUsers {
         onlineMap.clear();
     }
 }
-

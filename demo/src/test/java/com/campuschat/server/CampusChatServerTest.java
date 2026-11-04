@@ -113,7 +113,7 @@ public class CampusChatServerTest {
     @Test
     public void testDuplicateLoginRejected() throws Exception {
         try (TestClient client1 = connectClient();
-             TestClient client2 = connectClient()) {
+                TestClient client2 = connectClient()) {
 
             client1.send("LOGIN|alice");
             assertEquals("OK|Welcome alice", client1.readLine());
@@ -137,7 +137,7 @@ public class CampusChatServerTest {
     @Test
     public void testTwoClientsCanConnectAndChatConcurrently() throws Exception {
         try (TestClient alice = connectClient();
-             TestClient bob = connectClient()) {
+                TestClient bob = connectClient()) {
 
             alice.send("LOGIN|alice");
             assertEquals("OK|Welcome alice", alice.readLine());
@@ -158,6 +158,30 @@ public class CampusChatServerTest {
             // Both Alice and Bob should receive it
             assertEquals("MSG|alice|Hello everyone!", alice.readLine());
             assertEquals("MSG|alice|Hello everyone!", bob.readLine());
+        }
+    }
+
+    @Test
+    public void testOfflineUserReceivesMissedMessagesUponLogin() throws Exception {
+        // Bob logs in while Alice is offline
+        try (TestClient bob = connectClient()) {
+            bob.send("LOGIN|bob");
+            assertEquals("OK|Welcome bob", bob.readLine());
+            assertEquals("SYNC_START", bob.readLine());
+            assertEquals("SYNC_END", bob.readLine());
+
+            // Bob sends a message
+            bob.send("CHAT|Hello Alice, please read when you are back!");
+            assertEquals("MSG|bob|Hello Alice, please read when you are back!", bob.readLine());
+        }
+
+        // Alice logs in afterwards and should receive the missed message from Bob
+        try (TestClient alice = connectClient()) {
+            alice.send("LOGIN|alice");
+            assertEquals("OK|Welcome alice", alice.readLine());
+            assertEquals("SYNC_START", alice.readLine());
+            assertEquals("MSG|bob|Hello Alice, please read when you are back!", alice.readLine());
+            assertEquals("SYNC_END", alice.readLine());
         }
     }
 
@@ -250,7 +274,8 @@ public class CampusChatServerTest {
             this.socket = new Socket(host, port);
             this.socket.setSoTimeout(3000);
             this.reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
-            this.writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
+            this.writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8),
+                    true);
         }
 
         void send(String message) {
@@ -265,8 +290,8 @@ public class CampusChatServerTest {
         public void close() {
             try {
                 socket.close();
-            } catch (IOException ignored) {}
+            } catch (IOException ignored) {
+            }
         }
     }
 }
-

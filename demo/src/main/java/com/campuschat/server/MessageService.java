@@ -16,13 +16,23 @@ public class MessageService {
     private MessageService() {}
 
     /**
-     * Broadcasts a chat message to all online clients in the format MSG|sender|text.
+     * Broadcasts a chat message to all online clients in the format MSG|sender|text,
+     * and queues the message for any registered users who are currently offline.
      */
     public static void sendChat(String sender, String text) {
         checkDatabaseHealth();
         String message = "MSG|" + sender + "|" + text;
+
+        // 1. Send to all currently connected clients
         for (ClientHandler handler : OnlineUsers.getAll()) {
             handler.send(message);
+        }
+
+        // 2. Queue for all registered users who are currently offline
+        for (String user : UserStore.allUsernames()) {
+            if (!user.equalsIgnoreCase(sender) && !OnlineUsers.isOnline(user)) {
+                queueOfflineMessage(user, sender, text);
+            }
         }
     }
 
@@ -33,20 +43,28 @@ public class MessageService {
     public static void deliverMissed(String username, ClientHandler handler) {
         checkDatabaseHealth();
         handler.send("SYNC_START");
-        List<String> missed = offlineQueue.remove(username);
-        if (missed != null) {
-            for (String msg : missed) {
-                handler.send(msg);
+        if (username != null) {
+            String key = username.trim().toLowerCase();
+            List<String> missed = offlineQueue.remove(key);
+            if (missed == null) {
+                missed = offlineQueue.remove(username);
+            }
+            if (missed != null) {
+                for (String msg : missed) {
+                    handler.send(msg);
+                }
             }
         }
         handler.send("SYNC_END");
     }
 
     /**
-     * Helper to enqueue an offline message for testing deliverMissed.
+     * Helper to enqueue an offline message for delivery when the user logs in.
      */
     public static void queueOfflineMessage(String username, String sender, String text) {
-        offlineQueue.computeIfAbsent(username, k -> new CopyOnWriteArrayList<>())
+        if (username == null) return;
+        String key = username.trim().toLowerCase();
+        offlineQueue.computeIfAbsent(key, k -> new CopyOnWriteArrayList<>())
                     .add("MSG|" + sender + "|" + text);
     }
 
@@ -70,4 +88,3 @@ public class MessageService {
         }
     }
 }
-
