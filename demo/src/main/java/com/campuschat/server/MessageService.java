@@ -1,12 +1,16 @@
 package com.campuschat.server;
 
+import com.campuschat.model.OfflineMessage;
+import org.hibernate.Session;
+import org.hibernate.Transaction;
+
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * Stub class representing Person 2's MessageService.
- * Handles broadcast of chat messages and delivery of offline messages.
+ * Handles chat message broadcasting and offline message delivery.
+ * Backed by Hibernate ORM (MySQL) with an in-memory queue fallback.
  */
 public class MessageService {
 
@@ -45,6 +49,34 @@ public class MessageService {
         handler.send("SYNC_START");
         if (username != null) {
             String key = username.trim().toLowerCase();
+
+            // 1. If Hibernate is initialized, deliver from MySQL database
+            if (HibernateUtil.isInitialized()) {
+                try (Session session = HibernateUtil.openSession()) {
+                    if (session != null) {
+                        Transaction tx = session.beginTransaction();
+                        List<OfflineMessage> dbMsgs = session.createQuery(
+                                "FROM OfflineMessage WHERE LOWER(recipient) = :r ORDER BY createdAt ASC", OfflineMessage.class)
+                                .setParameter("r", key)
+                                .getResultList();
+
+                        if (dbMsgs != null && !dbMsgs.isEmpty()) {
+                            for (OfflineMessage om : dbMsgs) {
+                                handler.send("MSG|" + om.getSender() + "|" + om.getContent());
+                                session.remove(om);
+                            }
+                        }
+                        tx.commit();
+                        // Clear in-memory queue for this key
+                        offlineQueue.remove(key);
+                        offlineQueue.remove(username);
+                    }
+                } catch (Exception e) {
+                    System.err.println("[MessageService] Database error delivering missed messages: " + e.getMessage());
+                }
+            }
+
+            // 2. Deliver any in-memory queued messages (if any)
             List<String> missed = offlineQueue.remove(key);
             if (missed == null) {
                 missed = offlineQueue.remove(username);
@@ -59,13 +91,28 @@ public class MessageService {
     }
 
     /**
-     * Helper to enqueue an offline message for delivery when the user logs in.
+     * Enqueues an offline message for delivery when the user logs in.
      */
     public static void queueOfflineMessage(String username, String sender, String text) {
         if (username == null) return;
         String key = username.trim().toLowerCase();
+
+        // Enqueue in memory
         offlineQueue.computeIfAbsent(key, k -> new CopyOnWriteArrayList<>())
                     .add("MSG|" + sender + "|" + text);
+
+        // Persist to MySQL database if Hibernate is initialized
+        if (HibernateUtil.isInitialized()) {
+            try (Session session = HibernateUtil.openSession()) {
+                if (session != null) {
+                    Transaction tx = session.beginTransaction();
+                    session.persist(new OfflineMessage(key, sender, text));
+                    tx.commit();
+                }
+            } catch (Exception e) {
+                System.err.println("[MessageService] Database error persisting offline message: " + e.getMessage());
+            }
+        }
     }
 
     /**
@@ -73,11 +120,17 @@ public class MessageService {
      */
     public static void clearQueue() {
         offlineQueue.clear();
+        if (HibernateUtil.isInitialized()) {
+            try (Session session = HibernateUtil.openSession()) {
+                if (session != null) {
+                    Transaction tx = session.beginTransaction();
+                    session.createMutationQuery("DELETE FROM OfflineMessage").executeUpdate();
+                    tx.commit();
+                }
+            } catch (Exception ignored) {}
+        }
     }
 
-    /**
-     * Simulates database failure to verify exception handling (Section 11.3).
-     */
     public static void setSimulateDatabaseError(boolean throwError) {
         simulateDatabaseError = throwError;
     }
