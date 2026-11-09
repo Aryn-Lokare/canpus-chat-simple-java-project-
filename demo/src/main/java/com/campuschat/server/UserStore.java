@@ -6,10 +6,7 @@ import org.hibernate.Transaction;
 
 import java.util.*;
 
-/**
- * User account storage backed by Hibernate ORM and MySQL.
- * Falls back to an in-memory synchronized set if Hibernate is not initialized.
- */
+
 public class UserStore {
 
     private static final Set<String> registeredUsers =
@@ -24,14 +21,12 @@ public class UserStore {
 
     private UserStore() {}
 
-    // Normalizes username: trims and converts to lower case
+    
     private static String clean(String name) {
         return name == null ? "" : name.trim().toLowerCase();
     }
 
-    /**
-     * Seeds initial default accounts into MySQL if not already present.
-     */
+    
     public static void seedDefaultsIfEmpty() {
         if (!HibernateUtil.isInitialized()) {
             return;
@@ -55,9 +50,7 @@ public class UserStore {
         }
     }
 
-    /**
-     * Checks if a user exists in the database or in-memory registry.
-     */
+    
     public static boolean exists(String username) {
         checkDatabaseHealth();
         String name = clean(username);
@@ -83,9 +76,7 @@ public class UserStore {
         return registeredUsers.contains(name);
     }
 
-    /**
-     * Returns a list of all registered usernames.
-     */
+    
     public static List<String> allUsernames() {
         checkDatabaseHealth();
 
@@ -110,9 +101,7 @@ public class UserStore {
         }
     }
 
-    /**
-     * Adds a new registered user.
-     */
+    
     public static void addUser(String username) {
         String name = clean(username);
         if (name.isEmpty()) {
@@ -142,9 +131,7 @@ public class UserStore {
         }
     }
 
-    /**
-     * Removes a user (used by tests and cleanup).
-     */
+    
     public static void removeUser(String username) {
         String name = clean(username);
         synchronized (registeredUsers) {
