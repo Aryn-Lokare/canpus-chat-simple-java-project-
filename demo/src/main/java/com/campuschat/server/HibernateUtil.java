@@ -11,9 +11,7 @@ import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import java.io.File;
 import java.net.URL;
 
-/**
- * Manages the Hibernate SessionFactory and database connection lifecycle.
- */
+
 public class HibernateUtil {
 
     private static SessionFactory sessionFactory;
@@ -22,14 +20,11 @@ public class HibernateUtil {
 
     private HibernateUtil() {}
 
-    /**
-     * Initializes Hibernate ORM using the specified configuration file.
-     * Ensures local data/ directory exists.
-     */
+    
     public static synchronized void init(String configFile) {
         System.out.println("[Hibernate] Initializing Hibernate ORM with config: " + configFile);
 
-        // Ensure data/ directory exists for test assertions and local file storage
+      
         File dataDir = new File("data");
         if (!dataDir.exists()) {
             boolean created = dataDir.mkdirs();
@@ -45,14 +40,14 @@ public class HibernateUtil {
                     ? configFile.trim()
                     : "hibernate.cfg.xml";
 
-            // 1. Try resolving via ClassLoader (standard for classpath resources like hibernate.cfg.xml)
+           
             ClassLoader classLoader = HibernateUtil.class.getClassLoader();
             URL configUrl = classLoader.getResource(configName);
             if (configUrl == null && !configName.startsWith("/")) {
                 configUrl = classLoader.getResource("/" + configName);
             }
 
-            // 2. Try resolving as direct file path or within standard project/source directories
+           
             File cfgFile = null;
             File[] candidateFiles = new File[] {
                 new File(configName),
@@ -67,7 +62,7 @@ public class HibernateUtil {
                 }
             }
 
-            // 3. Configure the StandardServiceRegistryBuilder
+            
             if (configUrl != null) {
                 builder.configure(configUrl);
             } else if (cfgFile != null) {
@@ -87,7 +82,7 @@ public class HibernateUtil {
             System.out.println("[Hibernate] SessionFactory built successfully.");
             System.out.println("[Hibernate] Connected to MySQL database (campusv1).");
 
-            // Populate initial default users in MySQL database if empty
+         
             UserStore.seedDefaultsIfEmpty();
 
         } catch (Exception e) {
@@ -102,9 +97,7 @@ public class HibernateUtil {
         }
     }
 
-    /**
-     * Closes the Hibernate SessionFactory cleanly.
-     */
+   
     public static synchronized void shutdown() {
         if (sessionFactory != null && !sessionFactory.isClosed()) {
             System.out.println("[Hibernate] Closing Hibernate SessionFactory and database connection...");
@@ -123,9 +116,7 @@ public class HibernateUtil {
         return sessionFactory;
     }
 
-    /**
-     * Opens a new Hibernate Session if initialized, or returns null.
-     */
+   
     public static Session openSession() {
         if (sessionFactory != null && !sessionFactory.isClosed()) {
             return sessionFactory.openSession();
