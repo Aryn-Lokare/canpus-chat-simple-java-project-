@@ -3,9 +3,7 @@ package com.campuschat.model;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
-/**
- * Entity representing an unread message queued for an offline user.
- */
+
 @Entity
 @Table(name = "offline_messages")
 public class OfflineMessage {
